@@ -1,6 +1,6 @@
 # Examen Parcial: Plataforma Financiera de Gestión de Créditos
 
-Plataforma web interna desarrollada con **ASP.NET Core MVC (.NET 10)** para la evaluación, aprobación y gestión de solicitudes de crédito financieras con **Identity**, **Entity Framework Core (SQLite)**, **Redis Cache / Sesión**, **WebSockets en tiempo real (SignalR)** y **Cloud MQ (RabbitMQ en CloudAMQP)**.
+Plataforma web interna desarrollada con **ASP.NET Core MVC (.NET 10)** para la evaluación, aprobación y gestión de solicitudes de crédito financieras con **Identity**, **Entity Framework Core (SQLite)**, **Redis Cache / Sesión**, **WebSockets en tiempo real (SignalR / PiSocket)** y **Cloud MQ (RabbitMQ en CloudAMQP)**.
 
 ---
 
@@ -10,15 +10,15 @@ Plataforma web interna desarrollada con **ASP.NET Core MVC (.NET 10)** para la e
 - **Seguridad e Identidad:** ASP.NET Core Identity con Roles (`Analista`, `Cliente`)
 - **Base de Datos & ORM:** SQLite + Entity Framework Core 10 (con índices únicos condicionales)
 - **Caché y Sesiones:** Redis (StackExchange.Redis) / Fallback de memoria distribuida
-- **Comunicación en Tiempo Real:** SignalR Hub con transporte WebSocket forzado en `/hubs/solicitudes`
-- **Mensajería Asíncrona:** Cloud MQ gestionado con RabbitMQ (CloudAMQP) con confirmación de publicación (Publisher Confirms), entrega persistente, ACK manual y consumidor desacoplado en `BackgroundService`
+- **Comunicación en Tiempo Real:** Hub SignalR en `/hubs/solicitudes` con transporte estricto WebSocket y autenticación de Identity
+- **Mensajería Asíncrona:** Cloud MQ gestionado con RabbitMQ (CloudAMQP) mediante protocolo AMQPS, confirmación de publicación (Publisher Confirms), entrega persistente, ACK manual y consumidor desacoplado en `BackgroundService`
 - **Contenedorización & Despliegue:** Docker multi-etapa + Render.com Web Service con disco persistente
 
 ---
 
 ## 👥 Cuentas de Acceso Preconfiguradas (Seed Data)
 
-La base de datos SQLite se inicializa automáticamente al arrancar la aplicación con los siguientes usuarios:
+La base de datos SQLite se inicializa y migra automáticamente al arrancar la aplicación (`DbInitializer.cs`) con los siguientes usuarios de prueba:
 
 | Rol | Correo Electrónico | Contraseña | Ingresos Mensuales | Estado Inicial |
 | :--- | :--- | :--- | :--- | :--- |
@@ -28,51 +28,20 @@ La base de datos SQLite se inicializa automáticamente al arrancar la aplicació
 
 ---
 
-## 🌳 Estructura de Ramas y Pull Requests en GitHub
+## 🌳 Mapeo de Ramas y Pull Requests en GitHub
 
-Para cumplir estrictamente con los criterios de evaluación del examen, las preguntas deben ser versionadas en ramas independientes y cerradas mediante Pull Requests hacia `main`:
+Cumpliendo con las reglas generales de evaluación, cada pregunta se desarrolló en una rama independiente y se integró mediante PR hacia `main`:
 
-```bash
-# Pregunta 1: Bootstrap + Modelo de datos
-git checkout -b feature/bootstrap-dominio
-# (Comitear modelos Cliente, SolicitudCredito, DbContext, migraciones y seed data)
-# Abrir PR -> main
-
-# Pregunta 2: Catálogo de solicitudes y filtros
-git checkout -b feature/catalogo-solicitudes
-# (Comitear Mis Solicitudes, filtros server-side, vista Detalle)
-# Abrir PR -> main
-
-# Pregunta 3: Registro y validaciones de solicitud
-git checkout -b feature/solicitudes
-# (Comitear formulario Crear, validación 10x ingresos, sólo 1 pendiente activa)
-# Abrir PR -> main
-
-# Pregunta 4: Sesiones y Redis
-git checkout -b feature/sesion-redis
-# (Comitear Redis distributed cache 60s, invalidación, sesión de última solicitud)
-# Abrir PR -> main
-
-# Pregunta 5: Panel de Analista (rol)
-git checkout -b feature/panel-analista
-# (Comitear /Analista con [Authorize(Roles="Analista")], validación 5x, rechazo con motivo)
-# Abrir PR -> main
-
-# Pregunta 6: Notificaciones con WebSocket
-git checkout -b feature/websocket-notificaciones
-# (Comitear Hub /hubs/solicitudes, WebSocket transport, reconexión, sincronización)
-# Abrir PR -> main
-
-# Pregunta 7: Mensajería asíncrona con Cloud MQ
-git checkout -b feature/cloudmq-notificaciones
-# (Comitear RabbitMqProducer, RabbitMqConsumerService, NotificacionesController, vista)
-# Abrir PR -> main
-
-# Pregunta 8: Despliegue en Render
-git checkout -b deploy/render
-# (Comitear Dockerfile, entrypoint.sh, render.yaml, documentación de disco)
-# Abrir PR -> main
-```
+| Pregunta | Rama | Descripción del Pull Request |
+| :--- | :--- | :--- |
+| **Pregunta 1** | `feature/bootstrap-dominio` | Bootstrap del proyecto en .NET 10, modelo de datos (`Cliente`, `SolicitudCredito`), restricciones EF Core/SQLite y seed data. |
+| **Pregunta 2** | `feature/catalogo-solicitudes` | Vista "Mis solicitudes", filtros por estado/monto/fechas con validaciones server-side y vista detalle. |
+| **Pregunta 3** | `feature/solicitudes` | Formulario de registro de crédito, límite de 10x ingresos, validación de 1 solicitud pendiente y feedback en vista. |
+| **Pregunta 4** | `feature/sesion-redis` | Sesión Redis-backed con enlace de última solicitud visitada en layout y caché de 60s para listado con invalidación. |
+| **Pregunta 5** | `feature/panel-analista` | Panel `/Analista` con `[Authorize(Roles="Analista")]`, regla de negocio 5x y modal de rechazo con motivo obligatorio. |
+| **Pregunta 6** | `feature/websocket-notificaciones` | Hub `/hubs/solicitudes` con WebSocket transport, reconexión, consulta de estado vigente y notificación dirigida al propietario. |
+| **Pregunta 7** | `feature/cloudmq-notificaciones` | Productor AMQPS con publisher confirms, cola durable `solicitudes.notificaciones`, consumidor BackgroundService, ACK manual, control de duplicados y vista "Mis notificaciones". |
+| **Pregunta 8** | `deploy/render` | Dockerfile multi-etapa, script de inicio con expansión de `$PORT`, configuración de disco persistente para SQLite y render.yaml. |
 
 ---
 
@@ -90,10 +59,10 @@ git checkout -b deploy/render
     "DefaultConnection": "DataSource=app.db;Cache=Shared"
   },
   "Redis": {
-    "ConnectionString": "tu-redis-url:6379,password=tu_password,abortConnect=false"
+    "ConnectionString": ""
   },
   "RabbitMq": {
-    "ConnectionString": "amqps://usuario:password@servidor.cloudamqp.com/vhost",
+    "ConnectionString": "",
     "QueueName": "solicitudes.notificaciones",
     "ConsumerEnabled": true
   }
@@ -110,7 +79,7 @@ dotnet ef database update
 ```bash
 dotnet run
 ```
-La aplicación estará disponible en `http://localhost:5000` o `https://localhost:5001`.
+La aplicación estará disponible en `http://localhost:5000` o `https://localhost:5026`.
 
 ---
 
@@ -201,7 +170,7 @@ La aplicación estará disponible en `http://localhost:5000` o `https://localhos
 
 ### Configuración del Servicio Web en Render:
 - **Environment:** Docker
-- **Instance Type:** Free (1 instancia)
+- **Instance Type:** Free (1 sola instancia del Web Service con el BackgroundService dentro de ella)
 - **Region:** Oregon (o la de su preferencia)
 
 ### Variables de Entorno en el Dashboard de Render:
@@ -245,5 +214,20 @@ Esto garantiza que la aplicación escuche exactamente en el puerto asignado por 
 
 ---
 
-## 🌐 URL de Producción en Render
-- **URL del Servicio:** `https://plataforma-creditos.onrender.com` *(reemplazar por la URL generada al desplegar)*
+## 📸 Evidencias y Capturas para la Calificación
+
+Para adjuntar las evidencias requeridas por el examen en este README o en tu reporte:
+
+1. **WebSocket en DevTools (F12 -> Network -> WS):**
+   - Captura del handshake HTTP 101 Switching Protocols en `/hubs/solicitudes`.
+   - Captura del intento anónimo al Hub retornando HTTP 401 Unauthorized.
+2. **Actualización en Tiempo Real:**
+   - Captura de dos navegadores en paralelo: Analista aprobando/rechazando y Cliente actualizando su badge y recibiendo el Toast sin recargar la página.
+   - Comprobación de que un segundo cliente conectado no recibe la notificación ajena.
+3. **CloudAMQP (RabbitMQ):**
+   - Captura de la consola de CloudAMQP con `RabbitMq__ConsumerEnabled=false` mostrando 1 mensaje encolado (*Ready*).
+   - Captura tras reactivar el consumidor (`RabbitMq__ConsumerEnabled=true`) mostrando el mensaje consumido (*Acked*) y la fila en la vista "Mis Notificaciones".
+   - Captura del reenvío del mismo `MessageId` demostrando que no se duplica en la base de datos (idempotencia).
+4. **Despliegue en Render:**
+   - Captura del dashboard de Render con el servicio en estado *Live*, las variables de entorno configuradas y el disco `/data` montado.
+   - URL activa del servicio web desplegado.
