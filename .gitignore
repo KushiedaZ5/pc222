@@ -1,0 +1,19 @@
+# .NET & Visual Studio ignore rules
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.idea/
+.vscode/
+
+# SQLite local DB
+app.db
+app.db-shm
+app.db-wal
+
+# Secrets & logs
+*.log
+appsettings.Production.json

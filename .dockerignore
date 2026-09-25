@@ -1,0 +1,10 @@
+.git
+.gitignore
+.vs
+bin/
+obj/
+*.md
+*.pdf
+app.db
+app.db-shm
+app.db-wal
