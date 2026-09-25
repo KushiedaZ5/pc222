@@ -1,0 +1,268 @@
+@model PlataformaCreditos.Models.ViewModels.FiltroSolicitudesViewModel
+@{
+    ViewData["Title"] = "Mis Solicitudes de Crédito";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-folder2-open text-primary me-2"></i>Mis Solicitudes</h2>
+        <small class="text-muted">Historial y estado en tiempo real de sus solicitudes de crédito</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <!-- Indicador de conexión WebSocket en vivo (Pregunta 6) -->
+        <span id="wsStatusBadge" class="badge bg-secondary p-2 shadow-sm">
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            WebSocket: Conectando...
+        </span>
+        <a asp-action="Crear" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Nueva Solicitud
+        </a>
+    </div>
+</div>
+
+<!-- Formulario de Filtros con validaciones (Pregunta 2) -->
+<div class="card shadow-sm mb-4 border-0">
+    <div class="card-header bg-light fw-bold">
+        <i class="bi bi-funnel me-1"></i> Filtros de Búsqueda
+    </div>
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <!-- Resumen de validaciones server-side de filtros -->
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger pb-0">
+                    <ul class="mb-2">
+                        @foreach (var modelState in ViewData.ModelState.Values)
+                        {
+                            foreach (var error in modelState.Errors)
+                            {
+                                <li>@error.ErrorMessage</li>
+                            }
+                        }
+                    </ul>
+                </div>
+            }
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Estado</label>
+                    <select name="Estado" class="form-select">
+                        <option value="">-- Todos los estados --</option>
+                        <option value="Pendiente" selected="@(Model.Estado == "Pendiente")">Pendiente</option>
+                        <option value="Aprobado" selected="@(Model.Estado == "Aprobado")">Aprobado</option>
+                        <option value="Rechazado" selected="@(Model.Estado == "Rechazado")">Rechazado</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Monto Mínimo</label>
+                    <input type="number" step="0.01" min="0" name="MontoMin" class="form-control"
+                           value="@Model.MontoMin" placeholder="0.00" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Monto Máximo</label>
+                    <input type="number" step="0.01" min="0" name="MontoMax" class="form-control"
+                           value="@Model.MontoMax" placeholder="0.00" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Fecha Desde</label>
+                    <input type="date" name="FechaInicio" class="form-control"
+                           value="@Model.FechaInicio?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Fecha Hasta</label>
+                    <input type="date" name="FechaFin" class="form-control"
+                           value="@Model.FechaFin?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-outline-primary w-100" title="Filtrar">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mt-2">
+                <a asp-action="Index" class="btn btn-link btn-sm text-decoration-none text-muted">
+                    <i class="bi bi-x-circle me-1"></i> Limpiar filtros
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de Solicitudes -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="tablaSolicitudes">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3"># Solicitud</th>
+                        <th>Fecha Solicitud</th>
+                        <th>Monto Solicitado</th>
+                        <th>Estado Actual</th>
+                        <th>Motivo (si aplica)</th>
+                        <th class="text-end pe-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Solicitudes == null || !Model.Solicitudes.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                No se encontraron solicitudes registradas con los criterios seleccionados.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Solicitudes)
+                        {
+                            <tr id="fila-solicitud-@item.Id" data-solicitud-id="@item.Id">
+                                <td class="ps-3 fw-bold">#@item.Id</td>
+                                <td>@item.FechaSolicitud.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td class="fw-semibold text-primary">@item.MontoSolicitado.ToString("C")</td>
+                                <td>
+                                    <span class="badge solicitud-badge @(item.Estado == "Aprobado" ? "bg-success" : (item.Estado == "Rechazado" ? "bg-danger" : "bg-warning text-dark")) px-2 py-1">
+                                        @item.Estado
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="solicitud-motivo text-muted small">
+                                        @(string.IsNullOrWhiteSpace(item.MotivoRechazo) ? "-" : item.MotivoRechazo)
+                                    </span>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <a asp-action="Detalle" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-eye me-1"></i> Detalle
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Configuración de SignalR WebSocket (Pregunta 6)
+        // Transporte forzado a WebSockets como exige la consigna
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/solicitudes", {
+                transport: signalR.HttpTransportType.WebSockets
+            })
+            .withAutomaticReconnect([0, 2000, 5000, 10000, 20000])
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        const badge = document.getElementById("wsStatusBadge");
+
+        function setStatus(status, bgClass, icon) {
+            if (!badge) return;
+            badge.className = `badge ${bgClass} p-2 shadow-sm`;
+            badge.innerHTML = `<i class="bi ${icon} me-1"></i> WebSocket: ${status}`;
+        }
+
+        // Conectar al Hub
+        async function startConnection() {
+            try {
+                await connection.start();
+                setStatus("Conectado", "bg-success", "bi-check-circle-fill");
+                console.log("WebSocket SignalR conectado exitosamente con transporte WebSockets.");
+            } catch (err) {
+                console.error("Error al conectar WebSocket:", err);
+                setStatus("Desconectado", "bg-danger", "bi-exclamation-triangle-fill");
+                setTimeout(startConnection, 5000);
+            }
+        }
+
+        // Eventos de Reconexión (Pregunta 6: consultar estado vigente desde el servidor al reconectar)
+        connection.onreconnecting(error => {
+            console.warn("WebSocket reconectando...", error);
+            setStatus("Reconectando...", "bg-warning text-dark", "bi-arrow-repeat");
+        });
+
+        connection.onreconnected(async connectionId => {
+            console.log("WebSocket reconectado con id:", connectionId);
+            setStatus("Conectado", "bg-success", "bi-check-circle-fill");
+
+            // Consultar estado vigente desde el servidor para sincronizar cambios ocurridos durante la desconexión
+            const filas = document.querySelectorAll("[data-solicitud-id]");
+            for (const fila of filas) {
+                const id = fila.getAttribute("data-solicitud-id");
+                try {
+                    const resp = await fetch(`/Solicitudes/ObtenerEstado?id=${id}`);
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        actualizarFila(data.id, data.estado, data.motivoRechazo);
+                    }
+                } catch (e) {
+                    console.error("Error al sincronizar estado de solicitud " + id, e);
+                }
+            }
+        });
+
+        connection.onclose(error => {
+            console.error("Conexión WebSocket cerrada:", error);
+            setStatus("Desconectado", "bg-danger", "bi-x-circle-fill");
+        });
+
+        // Manejo del evento en tiempo real emitido por el Analista: SolicitudEstadoActualizado
+        connection.on("SolicitudEstadoActualizado", (data) => {
+            console.log("Evento recibido en tiempo real SolicitudEstadoActualizado:", data);
+            actualizarFila(data.solicitudId, data.estado, data.motivoRechazo);
+
+            // Mostrar toast de notificación sin recargar la página
+            mostrarAvisoEnPantalla(data.solicitudId, data.estado, data.motivoRechazo);
+        });
+
+        function actualizarFila(solicitudId, estado, motivo) {
+            const fila = document.getElementById(`fila-solicitud-${solicitudId}`);
+            if (!fila) return;
+
+            const badgeSpan = fila.querySelector(".solicitud-badge");
+            const motivoSpan = fila.querySelector(".solicitud-motivo");
+
+            if (badgeSpan) {
+                badgeSpan.textContent = estado;
+                badgeSpan.className = "badge solicitud-badge px-2 py-1 " +
+                    (estado === "Aprobado" ? "bg-success" : (estado === "Rechazado" ? "bg-danger" : "bg-warning text-dark"));
+            }
+
+            if (motivoSpan) {
+                motivoSpan.textContent = motivo ? motivo : "-";
+            }
+
+            // Efecto visual de resaltado
+            fila.classList.add("table-info");
+            setTimeout(() => fila.classList.remove("table-info"), 3000);
+        }
+
+        function mostrarAvisoEnPantalla(solicitudId, estado, motivo) {
+            const toastEl = document.getElementById("liveToast");
+            const bodyEl = document.getElementById("liveToastBody");
+            if (!toastEl || !bodyEl) return;
+
+            const icon = estado === "Aprobado" ? "bi-check2-circle text-success" : "bi-x-circle text-danger";
+            const textoMotivo = motivo ? `<br><small class="fst-italic">Motivo: ${motivo}</small>` : '';
+
+            bodyEl.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="bi ${icon} fs-4 me-2"></i>
+                    <div>
+                        <strong>¡Actualización de Solicitud #${solicitudId}!</strong><br>
+                        Estado: <span class="badge ${estado === 'Aprobado' ? 'bg-success' : 'bg-danger'}">${estado}</span>
+                        ${textoMotivo}
+                    </div>
+                </div>
+            `;
+
+            const toast = new bootstrap.Toast(toastEl, { delay: 6000 });
+            toast.show();
+        }
+
+        startConnection();
+    </script>
+}
