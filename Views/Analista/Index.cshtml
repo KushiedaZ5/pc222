@@ -1,0 +1,196 @@
+@model List<PlataformaCreditos.Models.SolicitudCredito>
+@{
+    ViewData["Title"] = "Panel de Analista de Riesgo";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0 text-dark"><i class="bi bi-shield-check text-warning me-2"></i>Panel de Analista de Riesgo</h2>
+        <small class="text-muted">Gestión, aprobación y rechazo de solicitudes de crédito pendientes</small>
+    </div>
+    <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+        <i class="bi bi-clock-history me-1"></i> @Model.Count solicitud(es) pendiente(s)
+    </span>
+</div>
+
+<!-- Mensajes TempData -->
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+        <strong>Error de Validación:</strong> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+}
+
+<!-- Regla de negocio destacada -->
+<div class="alert alert-info border-0 shadow-sm mb-4">
+    <div class="d-flex">
+        <i class="bi bi-info-circle-fill fs-4 me-3 text-info"></i>
+        <div>
+            <h6 class="fw-bold mb-1">Reglas de Evaluación para el Analista:</h6>
+            <ul class="mb-0 ps-3 small">
+                <li><strong>Límite de Aprobación:</strong> No se puede aprobar si el monto solicitado supera <strong>5 veces los ingresos mensuales</strong> del cliente.</li>
+                <li><strong>Motivo Obligatorio:</strong> Todo rechazo exige registrar obligatoriamente el motivo del mismo.</li>
+                <li><strong>Notificación en Tiempo Real:</strong> Al evaluar, el resultado se notifica vía <strong>WebSocket</strong> de forma directa e inmediata únicamente al usuario propietario.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3">
+        <h5 class="card-title mb-0 fw-bold">Solicitudes Pendientes de Evaluación</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3"># Solicitud</th>
+                        <th>Fecha Registro</th>
+                        <th>Cliente</th>
+                        <th>Ingresos Mensuales</th>
+                        <th>Límite Máx. Aprobación (5x)</th>
+                        <th>Monto Solicitado</th>
+                        <th>Estado de Regla</th>
+                        <th class="text-end pe-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="bi bi-check2-all fs-1 text-success d-block mb-2"></i>
+                                ¡Excelente! No hay solicitudes pendientes de evaluación en este momento.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var s in Model)
+                        {
+                            var ingresos = s.Cliente?.IngresosMensuales ?? 0m;
+                            var maxAprobacion = ingresos * 5m;
+                            bool excedeLimite = s.MontoSolicitado > maxAprobacion;
+
+                            <tr>
+                                <td class="ps-3 fw-bold">#@s.Id</td>
+                                <td>@s.FechaSolicitud.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    <div>Cliente #@s.ClienteId</div>
+                                    <small class="text-muted">Activo: @(s.Cliente?.Activo == true ? "Sí" : "No")</small>
+                                </td>
+                                <td class="fw-semibold text-secondary">@ingresos.ToString("C")</td>
+                                <td class="fw-semibold text-muted">@maxAprobacion.ToString("C")</td>
+                                <td class="fw-bold fs-6 @(excedeLimite ? "text-danger" : "text-primary")">
+                                    @s.MontoSolicitado.ToString("C")
+                                </td>
+                                <td>
+                                    @if (excedeLimite)
+                                    {
+                                        <span class="badge bg-danger text-wrap" style="max-width: 150px;">
+                                            <i class="bi bi-x-circle me-1"></i> Excede 5x ingresos (No aprobable)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle me-1"></i> Dentro del límite
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-end pe-3">
+                                    <div class="btn-group" role="group">
+                                        <!-- Botón Aprobar -->
+                                        <form asp-action="Aprobar" asp-route-id="@s.Id" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-success me-1"
+                                                    title="@(excedeLimite ? "No se puede aprobar: excede 5x ingresos" : "Aprobar solicitud")"
+                                                    disabled="@excedeLimite"
+                                                    onclick="return confirm('¿Confirma que desea APROBAR la solicitud #@s.Id?');">
+                                                <i class="bi bi-check-lg"></i> Aprobar
+                                            </button>
+                                        </form>
+
+                                        <!-- Botón Rechazar (Abre modal) -->
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalRechazar"
+                                                data-solicitud-id="@s.Id"
+                                                data-monto="@s.MontoSolicitado.ToString("C")">
+                                            <i class="bi bi-x-lg"></i> Rechazar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ingresar Motivo de Rechazo (Obligatorio) -->
+<div class="modal fade" id="modalRechazar" tabindex="-1" aria-labelledby="modalRechazarLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form asp-action="Rechazar" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="SolicitudId" id="modalSolicitudId" value="" />
+
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="modalRechazarLabel">
+                        <i class="bi bi-x-circle-fill me-2"></i>Rechazar Solicitud de Crédito
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Está a punto de rechazar la solicitud <strong id="modalTextoInfo"></strong>.</p>
+                    <div class="mb-3">
+                        <label for="MotivoRechazo" class="form-label fw-bold">
+                            Motivo del Rechazo <span class="text-danger">* (Obligatorio)</span>:
+                        </label>
+                        <textarea class="form-control" id="modalMotivo" name="MotivoRechazo" rows="3" required
+                                  placeholder="Ej: Capacidad de endeudamiento excedida, inconsistencias en historial crediticio..." minlength="5" maxlength="500"></textarea>
+                        <div class="form-text">El motivo será guardado en base de datos y notificado en tiempo real al solicitante vía WebSocket.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-shield-x me-1"></i> Confirmar Rechazo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const modalEl = document.getElementById('modalRechazar');
+        if (modalEl) {
+            modalEl.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const solicitudId = button.getAttribute('data-solicitud-id');
+                const monto = button.getAttribute('data-monto');
+
+                document.getElementById('modalSolicitudId').value = solicitudId;
+                document.getElementById('modalTextoInfo').textContent = `#${solicitudId} (${monto})`;
+                document.getElementById('modalMotivo').value = '';
+            });
+        }
+    </script>
+}
