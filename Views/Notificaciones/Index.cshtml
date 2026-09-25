@@ -1,0 +1,78 @@
+@model List<PlataformaCreditos.Models.Notificacion>
+@{
+    ViewData["Title"] = "Mis Notificaciones";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-bell-fill text-primary me-2"></i>Mis Notificaciones</h2>
+        <small class="text-muted">Mensajes asíncronos procesados mediante Cloud MQ (RabbitMQ) y almacenados en SQLite</small>
+    </div>
+    <span class="badge bg-primary fs-6 px-3 py-2">
+        <i class="bi bi-envelope-check me-1"></i> @Model.Count notificación(es)
+    </span>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0 fw-bold">Historial de Notificaciones Recibidas</h5>
+        <span class="badge bg-light text-dark border">
+            <i class="bi bi-hdd-network me-1"></i> Cola: solicitudes.notificaciones
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3"># ID</th>
+                        <th>Fecha Procesamiento (UTC)</th>
+                        <th>Mensaje / Notificación</th>
+                        <th>Solicitud Relacionada</th>
+                        <th>MessageId (UUID AMQP)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-bell-slash fs-1 text-muted d-block mb-2"></i>
+                                No tiene notificaciones pendientes ni procesadas aún.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var n in Model)
+                        {
+                            <tr>
+                                <td class="ps-3 fw-bold">@n.Id</td>
+                                <td>
+                                    <i class="bi bi-clock me-1 text-muted"></i>
+                                    @n.FechaProcesamientoUtc.ToString("dd/MM/yyyy HH:mm:ss")
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-dark">
+                                        <i class="bi bi-chat-left-text-fill text-primary me-2"></i>@n.Texto
+                                    </div>
+                                </td>
+                                <td>
+                                    <a asp-controller="Solicitudes" asp-action="Detalle" asp-route-id="@n.SolicitudId" class="badge bg-info text-dark text-decoration-none">
+                                        Solicitud #@n.SolicitudId
+                                    </a>
+                                </td>
+                                <td>
+                                    <code class="small text-secondary font-monospace">@n.MessageId</code>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-light text-muted small">
+        <i class="bi bi-info-circle me-1"></i> Las notificaciones son generadas de forma desacoplada por el consumidor en segundo plano (BackgroundService) utilizando confirmación manual (ACK) y control de unicidad de MessageId.
+    </div>
+</div>
