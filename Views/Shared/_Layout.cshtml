@@ -1,0 +1,105 @@
+@using Microsoft.AspNetCore.Http
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Plataforma de Créditos</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PlataformaCreditos.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-3">
+            <div class="container">
+                <a class="navbar-brand fw-bold" asp-controller="Home" asp-action="Index">
+                    <i class="bi bi-bank2 me-1"></i> Plataforma Créditos
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain"
+                        aria-controls="navbarMain" aria-expanded="false" aria-label="Navegación">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarMain">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Solicitudes" asp-action="MisSolicitudes">
+                                    <i class="bi bi-list-check me-1"></i> Mis Solicitudes
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Solicitudes" asp-action="Crear">
+                                    <i class="bi bi-plus-circle me-1"></i> Nueva Solicitud
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Notificaciones" asp-action="Index">
+                                    <i class="bi bi-bell me-1"></i> Mis Notificaciones
+                                </a>
+                            </li>
+
+                            @if (User.IsInRole("Analista"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-warning fw-bold" asp-controller="Analista" asp-action="Index">
+                                        <i class="bi bi-shield-check me-1"></i> Panel Analista
+                                    </a>
+                                </li>
+                            }
+
+                            @* Pregunta 4: Enlace en el layout "Ver última solicitud {Monto}" respaldado en sesión Redis *@
+                            var ultimaId = Context.Session.GetInt32("UltimaSolicitudId");
+                            var ultimaMonto = Context.Session.GetString("UltimaSolicitudMonto");
+                            if (ultimaId.HasValue && !string.IsNullOrEmpty(ultimaMonto))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-info fw-semibold border border-info rounded px-2 ms-lg-2"
+                                       asp-controller="Solicitudes" asp-action="Detalle" asp-route-id="@ultimaId.Value"
+                                       title="Última solicitud consultada en sesión">
+                                        <i class="bi bi-clock-history me-1"></i> Ver última solicitud (@ultimaMonto)
+                                    </a>
+                                </li>
+                            }
+                        }
+                    </ul>
+                    <partial name="_LoginPartial" />
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container mb-5">
+        @* Toast / Notificación flotante para WebSocket *@
+        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+            <div id="liveToast" class="toast align-items-center text-bg-primary border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body" id="liveToastBody">
+                        <!-- Mensaje dinámico de WebSocket -->
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+                </div>
+            </div>
+        </div>
+
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted py-3 bg-light fixed-bottom">
+        <div class="container d-flex justify-content-between align-items-center">
+            <span>&copy; 2026 - Plataforma de Créditos Financiera - Parcial</span>
+            <span>Stack: ASP.NET Core (.NET 10) + EF SQLite + Redis + WebSocket + RabbitMQ</span>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/signalr/signalr.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
