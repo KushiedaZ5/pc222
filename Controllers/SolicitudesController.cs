@@ -78,7 +78,7 @@ public class SolicitudesController : Controller
         if (!ModelState.IsValid)
         {
             filtro.Solicitudes = new List<SolicitudCredito>();
-            return View(filtro);
+            return View("Index", filtro);
         }
 
         bool tieneFiltrosActivos = !string.IsNullOrWhiteSpace(filtro.Estado) ||
@@ -97,7 +97,7 @@ public class SolicitudesController : Controller
             {
                 _logger.LogInformation("Solicitudes obtenidas desde Redis Cache para usuario {UserId}", user.Id);
                 filtro.Solicitudes = lista;
-                return View(filtro);
+                return View("Index", filtro);
             }
         }
 
@@ -141,7 +141,7 @@ public class SolicitudesController : Controller
         }
 
         filtro.Solicitudes = lista;
-        return View(filtro);
+        return View("Index", filtro);
     }
 
     // Alias para la ruta "MisSolicitudes"
