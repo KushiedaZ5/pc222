@@ -1,0 +1,129 @@
+@{
+    ViewData["Title"] = "Inicio - Plataforma de Créditos";
+}
+
+<div class="p-5 mb-4 bg-light rounded-3 shadow-sm border">
+    <div class="container-fluid py-2">
+        <h1 class="display-5 fw-bold text-primary">
+            <i class="bi bi-bank2 me-2"></i>Plataforma Financiera de Créditos
+        </h1>
+        <p class="col-md-9 fs-5 text-secondary">
+            Sistema web de evaluación y gestión de solicitudes de crédito financieras desarrollado con 
+            <strong>ASP.NET Core MVC (.NET 10)</strong>, <strong>EF Core (SQLite)</strong>, <strong>Redis</strong>, 
+            <strong>WebSockets en tiempo real</strong> y <strong>Cloud MQ (RabbitMQ)</strong>.
+        </p>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="btn btn-primary btn-lg" asp-controller="Solicitudes" asp-action="MisSolicitudes">
+                    <i class="bi bi-folder2-open me-1"></i> Ir a Mis Solicitudes
+                </a>
+                <a class="btn btn-outline-primary btn-lg" asp-controller="Solicitudes" asp-action="Crear">
+                    <i class="bi bi-plus-circle me-1"></i> Registrar Solicitud
+                </a>
+                @if (User.IsInRole("Analista"))
+                {
+                    <a class="btn btn-warning btn-lg fw-bold" asp-controller="Analista" asp-action="Index">
+                        <i class="bi bi-shield-check me-1"></i> Panel de Analista
+                    </a>
+                }
+            }
+            else
+            {
+                <a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Login">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Iniciar Sesión
+                </a>
+                <a class="btn btn-outline-secondary btn-lg" asp-area="Identity" asp-page="/Account/Register">
+                    <i class="bi bi-person-plus me-1"></i> Registrarse
+                </a>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Cuentas Semilla (Seed Data) -->
+    <div class="col-md-5">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-header bg-dark text-white fw-bold">
+                <i class="bi bi-key-fill me-2 text-warning"></i> Cuentas Preconfiguradas (Seed Data)
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">La base de datos SQLite se inicializa automáticamente con los siguientes usuarios de prueba:</p>
+                <div class="list-group list-group-flush small">
+                    <div class="list-group-item px-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <strong class="text-primary"><i class="bi bi-shield-lock me-1"></i> Analista de Riesgo</strong>
+                            <span class="badge bg-warning text-dark">Rol: Analista</span>
+                        </div>
+                        <div>Email: <code>analista@creditos.com</code></div>
+                        <div>Password: <code>Password123!</code></div>
+                    </div>
+                    <div class="list-group-item px-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <strong class="text-success"><i class="bi bi-person me-1"></i> Cliente 1</strong>
+                            <span class="badge bg-success">Ingresos: $3,000.00</span>
+                        </div>
+                        <div>Email: <code>cliente1@creditos.com</code></div>
+                        <div>Password: <code>Password123!</code></div>
+                        <div class="text-muted small">Tiene 1 solicitud inicial en estado <em>Pendiente</em> ($6,000.00)</div>
+                    </div>
+                    <div class="list-group-item px-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <strong class="text-info"><i class="bi bi-person me-1"></i> Cliente 2</strong>
+                            <span class="badge bg-info text-dark">Ingresos: $5,000.00</span>
+                        </div>
+                        <div>Email: <code>cliente2@creditos.com</code></div>
+                        <div>Password: <code>Password123!</code></div>
+                        <div class="text-muted small">Tiene 1 solicitud inicial en estado <em>Aprobado</em> ($15,000.00)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Módulos y Requerimientos Implementados -->
+    <div class="col-md-7">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-header bg-primary text-white fw-bold">
+                <i class="bi bi-check2-square me-2"></i> Puntos Implementados del Examen
+            </div>
+            <div class="card-body">
+                <div class="row g-2 small">
+                    <div class="col-12 p-2 border-bottom">
+                        <span class="badge bg-primary me-1">P1</span>
+                        <strong>Modelo de Datos:</strong> SQLite con índices únicos y relación <code>Cliente</code> y <code>SolicitudCredito</code>.
+                    </div>
+                    <div class="col-12 p-2 border-bottom">
+                        <span class="badge bg-primary me-1">P2</span>
+                        <strong>Catálogo y Filtros:</strong> Filtros por Estado, Rango de Montos y Rango de Fechas con validaciones server-side.
+                    </div>
+                    <div class="col-12 p-2 border-bottom">
+                        <span class="badge bg-primary me-1">P3</span>
+                        <strong>Registro y Validaciones:</strong> Límite de 10x ingresos, sólo 1 solicitud activa pendiente por cliente.
+                    </div>
+                    <div class="col-12 p-2 border-bottom">
+                        <span class="badge bg-primary me-1">P4</span>
+                        <strong>Sesión y Redis:</strong> Caché distribuido de 60s con invalidación; Sesión para "Ver última solicitud {Monto}".
+                    </div>
+                    <div class="col-12 p-2 border-bottom">
+                        <span class="badge bg-primary me-1">P5</span>
+                        <strong>Panel de Analista:</strong> Regla estricta 5x ingresos, motivo obligatorio en rechazo y control de roles.
+                    </div>
+                    <div class="col-12 p-2 border-bottom">
+                        <span class="badge bg-primary me-1">P6</span>
+                        <strong>WebSocket (SignalR):</strong> Hub en <code>/hubs/solicitudes</code> con transporte WebSocket, actualización en vivo y reconexión.
+                    </div>
+                    <div class="col-12 p-2 border-bottom">
+                        <span class="badge bg-primary me-1">P7</span>
+                        <strong>Cloud MQ (RabbitMQ):</strong> Publicador con confirms, cola durable, consumidor en BackgroundService, ACK manual e idempotencia.
+                    </div>
+                    <div class="col-12 p-2">
+                        <span class="badge bg-primary me-1">P8</span>
+                        <strong>Despliegue Render:</strong> Dockerfile, variables de entorno, soporte de disco persistente para SQLite y arranque con expansión de <code>$PORT</code>.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

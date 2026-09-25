@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: plataforma-creditos
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    disk:
+      name: credit_sqlite_data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        value: DataSource=/data/app.db;Cache=Shared
+      - key: Redis__ConnectionString
+        sync: false
+      - key: RabbitMq__ConnectionString
+        sync: false
+      - key: RabbitMq__QueueName
+        value: solicitudes.notificaciones
+      - key: RabbitMq__ConsumerEnabled
+        value: "true"
